@@ -8,8 +8,8 @@
     "email": "hello@aspiz.uk",
     "url": "https://aspiz.uk/"
   },
-  "repository": "https://github.com/aspizzim/oxlint-plugin-aspizuism",
-  "bugs": "https://github.com/aspizzim/oxlint-plugin-aspizuism/issues",
+  "repository": "https://github.com/aspizu/oxlint-plugin-aspizuism",
+  "bugs": "https://github.com/aspizu/oxlint-plugin-aspizuism/issues",
   "scripts": {
     "check": "tsgo --noEmit",
     "lint": "oxlint",

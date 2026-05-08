@@ -3,6 +3,13 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "author": {
+    "name": "Priyanshu Dangare",
+    "email": "hello@aspiz.uk",
+    "url": "https://aspiz.uk/"
+  },
+  "repository": "https://github.com/aspizzim/oxlint-plugin-aspizuism",
+  "bugs": "https://github.com/aspizzim/oxlint-plugin-aspizuism/issues",
   "scripts": {
     "check": "tsgo --noEmit",
     "lint": "oxlint",

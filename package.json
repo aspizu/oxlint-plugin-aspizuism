@@ -1,0 +1,21 @@
+{
+  "name": "oxlint-plugin-aspizuism",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "check": "tsgo --noEmit",
+    "lint": "oxlint",
+    "build": "esbuild --bundle --format=esm --packages=external --platform=node --sourcemap --keep-names --sources-content=false src/index.ts --outfile=dist/index.js && cp package.json README.md LICENSE dist/"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260508.1",
+    "esbuild": "^0.28.0",
+    "oxlint": "^1.63.0",
+    "oxlint-plugin-aspizuism": "link:.",
+    "oxlint-tsgolint": "^0.22.1"
+  },
+  "dependencies": {
+    "@oxlint/plugins": "^1.63.0"
+  }
+}

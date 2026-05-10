@@ -16,6 +16,7 @@ export default {
       FunctionDeclaration(node) {
         if (node.id === null) return
         if (node.id.name.startsWith("_")) return
+        if (node.parent.type === "ExportNamedDeclaration") return
         context.report({
           node: node.id,
           message: "Private function should start with an underscore.",

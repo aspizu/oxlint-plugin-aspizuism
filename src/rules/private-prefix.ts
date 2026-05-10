@@ -8,6 +8,7 @@ export default {
         if (node.declaration.type !== "FunctionDeclaration") return
         if (node.declaration.id === null) return
         if (!node.declaration.id.name.startsWith("_")) return
+        if (/^[A-Z]/.test(node.declaration.id.name)) return
         context.report({
           node: node.declaration.id,
           message: "Exported function should not start with an underscore.",
@@ -16,6 +17,7 @@ export default {
       FunctionDeclaration(node) {
         if (node.id === null) return
         if (node.id.name.startsWith("_")) return
+        if (/^[A-Z]/.test(node.id.name)) return
         if (node.parent.type === "ExportNamedDeclaration") return
         context.report({
           node: node.id,

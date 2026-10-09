@@ -6,36 +6,22 @@ export default {
       Program(node) {
         for (const comment of node.comments) {
           const trimmed = comment.value.trim()
-          switch (comment.type) {
-            case "Line": {
-              if (
-                !(
-                  trimmed.startsWith("@ts-") ||
-                  trimmed.startsWith("eslint-") ||
-                  trimmed.startsWith("oxlint-") ||
-                  trimmed.startsWith("#region") ||
-                  trimmed.startsWith("#endregion") ||
-                  trimmed.toLocaleLowerCase().startsWith("todo") ||
-                  trimmed.toLocaleLowerCase().startsWith("fixme")
-                )
-              ) {
-                context.report({
-                  node: comment,
-                  message: "Comments are not allowed.",
-                })
-              }
-              break
-            }
-            case "Block": {
-              if (!comment.value.startsWith("*")) {
-                context.report({
-                  node: comment,
-                  message: "Comments are not allowed.",
-                })
-              }
-              break
-            }
-          }
+          if (comment.type !== "Line" && comment.type !== "Block") continue
+          if (
+            (comment.type === "Block" && trimmed.startsWith("*")) ||
+            trimmed.startsWith("@ts-") ||
+            trimmed.startsWith("eslint-") ||
+            trimmed.startsWith("oxlint-") ||
+            trimmed.startsWith("prettier-ignore") ||
+            trimmed.startsWith("#region") ||
+            trimmed.startsWith("#endregion") ||
+            trimmed.toLowerCase().startsWith("todo") ||
+            trimmed.toLowerCase().startsWith("fixme")
+          ) continue
+          context.report({
+            node: comment,
+            message: "Comments are not allowed.",
+          })
         }
       },
     }

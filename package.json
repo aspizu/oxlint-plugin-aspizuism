@@ -18,9 +18,7 @@
   "devDependencies": {
     "@typescript/native-preview": "7.0.0-dev.20260508.1",
     "esbuild": "^0.28.0",
-    "oxlint": "^1.63.0",
-    "oxlint-plugin-aspizuism": "link:.",
-    "oxlint-tsgolint": "^0.22.1"
+    "oxlint": "^1.63.0"
   },
   "dependencies": {
     "@oxlint/plugins": "^1.63.0"

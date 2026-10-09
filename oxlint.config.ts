@@ -9,5 +9,4 @@ export default defineConfig({
     "aspizuism/no-comments": "error",
     "aspizuism/private-prefix": "error",
   },
-  options: {typeAware: true},
 })

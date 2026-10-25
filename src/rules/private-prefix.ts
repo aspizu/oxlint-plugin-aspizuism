@@ -1,5 +1,66 @@
-import type {Definition, ESTree, Scope, Variable} from "@oxlint/plugins"
+import type {ESTree, Scope, SourceCode, Variable} from "@oxlint/plugins"
 import {Rule} from "@oxlint/plugins"
+
+function _getConstantInitializer(variable: Variable | undefined) {
+  if (variable?.defs.length !== 1) {
+    return null
+  }
+  const definition = variable.defs[0]
+  if (
+    definition.node.type !== "VariableDeclarator" ||
+    definition.node.id.type !== "Identifier" ||
+    definition.parent?.type !== "VariableDeclaration" ||
+    definition.parent.kind !== "const" ||
+    definition.node.init === null ||
+    variable.references.some((reference) => reference.isWrite() && !reference.init)
+  ) {
+    return null
+  }
+  return definition.node.init
+}
+
+function _resolveKey(node: ESTree.Node, sourceCode: SourceCode): ESTree.Node | null {
+  const seen = new Set<ESTree.Node>()
+  while (!seen.has(node)) {
+    seen.add(node)
+    if (
+      node.type === "TSAsExpression" ||
+      node.type === "TSSatisfiesExpression" ||
+      node.type === "TSTypeAssertion" ||
+      node.type === "TSNonNullExpression" ||
+      node.type === "ParenthesizedExpression"
+    ) {
+      node = node.expression
+      continue
+    }
+    if (node.type !== "Identifier") break
+    let scope: Scope | null = sourceCode.getScope(node)
+    while (scope && !scope.set.has(node.name)) scope = scope.upper
+    const initializer = _getConstantInitializer(scope?.set.get(node.name))
+    if (initializer === null) {
+      return null
+    }
+    node = initializer
+  }
+  return node
+}
+
+function _getMemberName(key: ESTree.Node, computed: boolean, sourceCode: SourceCode) {
+  const resolved = computed ? _resolveKey(key, sourceCode) : key
+  if (resolved === null) {
+    return null
+  }
+  if (!computed && resolved.type === "Identifier") {
+    return resolved.name
+  }
+  if (resolved.type === "Literal" && typeof resolved.value === "string") {
+    return resolved.value
+  }
+  if (resolved.type === "TemplateLiteral" && resolved.expressions.length === 0) {
+    return resolved.quasis[0].value.cooked
+  }
+  return null
+}
 
 export default {
   createOnce(context) {
@@ -9,7 +70,7 @@ export default {
         const id = node.id
         const variable = context.sourceCode
           .getDeclaredVariables(node)
-          .find((variable) => variable.identifiers.includes(id))
+          .find((candidate) => candidate.identifiers.includes(id))
         const isExported =
           node.parent.type === "ExportNamedDeclaration" ||
           node.parent.type === "ExportDefaultDeclaration" ||
@@ -58,54 +119,17 @@ export default {
       ) {
         if ("kind" in node && node.kind === "constructor") return
         if (node.accessibility === "protected") return
-        const key =
-          node.type === "TSParameterProperty" ?
-            node.parameter.type === "AssignmentPattern" ?
-              node.parameter.left
-            : node.parameter
-          : node.key
-        let resolved: ESTree.Node = key
-        const computed = "computed" in node && node.computed
-        if (computed) {
-          const seen = new Set<ESTree.Node>()
-          while (!seen.has(resolved)) {
-            seen.add(resolved)
-            if (
-              resolved.type === "TSAsExpression" ||
-              resolved.type === "TSSatisfiesExpression" ||
-              resolved.type === "TSTypeAssertion" ||
-              resolved.type === "TSNonNullExpression" ||
-              resolved.type === "ParenthesizedExpression"
-            ) {
-              resolved = resolved.expression
-              continue
-            }
-            if (resolved.type !== "Identifier") break
-            let scope: Scope | null = context.sourceCode.getScope(resolved)
-            while (scope && !scope.set.has(resolved.name)) scope = scope.upper
-            const variable: Variable | undefined = scope?.set.get(resolved.name)
-            if (variable?.defs.length !== 1) return
-            const definition: Definition = variable.defs[0]
-            if (
-              definition.node.type !== "VariableDeclarator" ||
-              definition.node.id.type !== "Identifier" ||
-              definition.parent?.type !== "VariableDeclaration" ||
-              definition.parent.kind !== "const" ||
-              definition.node.init === null ||
-              variable.references.some(
-                (reference) => reference.isWrite() && !reference.init,
-              )
-            ) return
-            resolved = definition.node.init
+        let key: ESTree.Node
+        if (node.type === "TSParameterProperty") {
+          key = node.parameter
+          if (key.type === "AssignmentPattern") {
+            key = key.left
           }
+        } else {
+          key = node.key
         }
-        const name =
-          !computed && resolved.type === "Identifier" ? resolved.name
-          : resolved.type === "Literal" && typeof resolved.value === "string" ?
-            resolved.value
-          : resolved.type === "TemplateLiteral" && resolved.expressions.length === 0 ?
-            resolved.quasis[0].value.cooked
-          : null
+        const computed = "computed" in node && node.computed
+        const name = _getMemberName(key, computed, context.sourceCode)
         if (name == null) return
         const privateMember = node.accessibility === "private"
         if (name.startsWith("_") === privateMember) return
@@ -114,9 +138,9 @@ export default {
           message:
             (privateMember ? "Private" : "Public") +
             ("kind" in node ? " method" : " property") +
-            (privateMember ?
-              " should start with an underscore."
-            : " should not start with an underscore."),
+            (privateMember
+              ? " should start with an underscore."
+              : " should not start with an underscore."),
         })
       },
     }

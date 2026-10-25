@@ -1,5 +1,117 @@
-import type {ESTree} from "@oxlint/plugins"
+import type {ESTree, SourceCode} from "@oxlint/plugins"
 import {Rule} from "@oxlint/plugins"
+
+function _isNode(value: unknown): value is ESTree.Node {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    typeof value.type === "string"
+  )
+}
+
+function _queueChildren(
+  node: ESTree.Node,
+  pending: ESTree.Node[],
+  sourceCode: SourceCode,
+) {
+  for (const key of sourceCode.visitorKeys[node.type] ?? []) {
+    if (
+      key === "value" &&
+      (node.type === "PropertyDefinition" ||
+        node.type === "TSAbstractPropertyDefinition" ||
+        node.type === "AccessorProperty" ||
+        node.type === "TSAbstractAccessorProperty")
+    )
+      continue
+    const value: unknown = Reflect.get(node, key)
+    if (Array.isArray(value)) {
+      pending.push(...value.filter(_isNode))
+    } else if (_isNode(value)) {
+      pending.push(value)
+    }
+  }
+}
+
+function _isDirectEval(node: ESTree.Node): boolean {
+  if (node.type !== "CallExpression" || node.optional) {
+    return false
+  }
+  let callee = node.callee
+  while (
+    callee.type === "TSAsExpression" ||
+    callee.type === "TSSatisfiesExpression" ||
+    callee.type === "TSTypeAssertion" ||
+    callee.type === "TSNonNullExpression" ||
+    callee.type === "TSInstantiationExpression" ||
+    callee.type === "ParenthesizedExpression"
+  ) {
+    callee = callee.expression
+  }
+  return callee.type === "Identifier" && callee.name === "eval"
+}
+
+function _usesLexicalScope(
+  node: ESTree.Node,
+  arrow: ESTree.ArrowFunctionExpression,
+  sourceCode: SourceCode,
+): boolean {
+  if (
+    node.type === "ThisExpression" ||
+    node.type === "Super" ||
+    (node.type === "MetaProperty" && node.meta.name === "new")
+  ) {
+    return true
+  }
+  if (_isDirectEval(node)) {
+    return true
+  }
+  if (node.type !== "Identifier" || node.name !== "arguments") {
+    return false
+  }
+  const reference = sourceCode
+    .getScope(node)
+    .references.find((candidate) => candidate.identifier === node)
+  if (!reference) {
+    return false
+  }
+  return (
+    !reference.resolved?.defs.some(
+      (definition) =>
+        definition.name.range[0] >= arrow.range[0] &&
+        definition.name.range[1] <= arrow.range[1],
+    ) ||
+    reference.resolved.defs.some(
+      (definition) =>
+        definition.parent?.type === "VariableDeclaration" &&
+        definition.parent.kind === "var",
+    )
+  )
+}
+
+function _queueParameterDecorators(
+  node: ESTree.Function,
+  pending: ESTree.Node[],
+  sourceCode: SourceCode,
+): boolean {
+  for (const [index, parameter] of node.params.entries()) {
+    if (
+      parameter.type === "RestElement" &&
+      sourceCode
+        .getTokens(node)
+        .some(
+          (token) =>
+            token.value === "@" &&
+            token.range[0] >= (node.params[index - 1]?.range[1] ?? node.range[0]) &&
+            token.range[1] <= parameter.range[0],
+        )
+    ) {
+      return false
+    }
+    pending.push(...(parameter.decorators ?? []))
+  }
+  return true
+}
 
 export default {
   createOnce(context) {
@@ -15,91 +127,18 @@ export default {
         const pending: ESTree.Node[] = [arrow]
         while (pending.length !== 0) {
           const child = pending.pop()!
-          if (
-            child.type === "ThisExpression" ||
-            child.type === "Super" ||
-            (child.type === "MetaProperty" && child.meta.name === "new")
-          ) return
-          if (child.type === "Identifier" && child.name === "arguments") {
-            const reference = context.sourceCode
-              .getScope(child)
-              .references.find((reference) => reference.identifier === child)
-            if (
-              reference &&
-              (!reference.resolved?.defs.some(
-                (definition) =>
-                  definition.name.range[0] >= arrow.range[0] &&
-                  definition.name.range[1] <= arrow.range[1],
-              ) ||
-                reference.resolved.defs.some(
-                  (definition) =>
-                    definition.parent?.type === "VariableDeclaration" &&
-                    definition.parent.kind === "var",
-                ))
-            ) return
-          }
-          if (child.type === "CallExpression" && !child.optional) {
-            let callee = child.callee
-            while (
-              callee.type === "TSAsExpression" ||
-              callee.type === "TSSatisfiesExpression" ||
-              callee.type === "TSTypeAssertion" ||
-              callee.type === "TSNonNullExpression" ||
-              callee.type === "TSInstantiationExpression" ||
-              callee.type === "ParenthesizedExpression"
-            ) {
-              callee = callee.expression
-            }
-            if (callee.type === "Identifier" && callee.name === "eval") return
-          }
+          if (_usesLexicalScope(child, arrow, context.sourceCode)) return
           if (
             child.type === "FunctionDeclaration" ||
             child.type === "FunctionExpression" ||
             child.type === "TSDeclareFunction" ||
             child.type === "TSEmptyBodyFunctionExpression"
           ) {
-            for (const [index, parameter] of child.params.entries()) {
-              if (
-                parameter.type === "RestElement" &&
-                context.sourceCode.getTokens(child).some(
-                  (token) =>
-                    token.value === "@" &&
-                    token.range[0] >=
-                      (child.params[index - 1]?.range[1] ?? child.range[0]) &&
-                    token.range[1] <= parameter.range[0],
-                )
-              ) return
-              for (const decorator of parameter.decorators ?? []) {
-                pending.push(decorator)
-              }
-            }
+            if (!_queueParameterDecorators(child, pending, context.sourceCode)) return
             continue
           }
           if (child.type === "StaticBlock") continue
-          for (const key of context.sourceCode.visitorKeys[child.type] ?? []) {
-            if (
-              key === "value" &&
-              (child.type === "PropertyDefinition" ||
-                child.type === "TSAbstractPropertyDefinition" ||
-                child.type === "AccessorProperty" ||
-                child.type === "TSAbstractAccessorProperty")
-            ) continue
-            const value = (
-              child as unknown as Record<
-                string,
-                ESTree.Node | (ESTree.Node | null)[] | null
-              >
-            )[key]
-            if (Array.isArray(value)) {
-              for (const node of value) {
-                if (node !== null) {
-                  pending.push(node)
-                }
-              }
-            } else if (value != null) {
-              pending.push(value)
-            }
-          }
+          _queueChildren(child, pending, context.sourceCode)
         }
         context.report({
           node: node.declarations[0].id,

@@ -1,7 +1,7 @@
 {
   "name": "oxlint-plugin-aspizuism",
   "version": "1.0.5",
-  "type": "module",
+  "bugs": "https://github.com/aspizu/oxlint-plugin-aspizuism/issues",
   "license": "MIT",
   "author": {
     "name": "Priyanshu Dangare",
@@ -9,18 +9,22 @@
     "url": "https://aspiz.uk/"
   },
   "repository": "https://github.com/aspizu/oxlint-plugin-aspizuism",
-  "bugs": "https://github.com/aspizu/oxlint-plugin-aspizuism/issues",
+  "type": "module",
   "scripts": {
-    "check": "tsgo --noEmit",
+    "check": "tsc --noEmit",
     "lint": "oxlint",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
     "build": "esbuild --bundle --format=esm --packages=external --platform=node --sourcemap --keep-names --sources-content=false src/index.ts --outfile=dist/index.js && cp package.json README.md LICENSE dist/"
   },
-  "devDependencies": {
-    "@typescript/native-preview": "7.0.0-dev.20260508.1",
-    "esbuild": "^0.28.0",
-    "oxlint": "^1.63.0"
-  },
   "dependencies": {
-    "@oxlint/plugins": "^1.63.0"
+    "@oxlint/plugins": "^1.89.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "oxfmt": "^0.74.0",
+    "oxlint": "^1.89.0",
+    "oxlint-tsgolint": "^7.0.2005",
+    "typescript": "^7.0.2"
   }
 }

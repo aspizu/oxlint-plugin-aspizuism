@@ -12,12 +12,14 @@ export default {
             trimmed.startsWith("@ts-") ||
             trimmed.startsWith("eslint-") ||
             trimmed.startsWith("oxlint-") ||
+            trimmed.startsWith("oxfmt-ignore") ||
             trimmed.startsWith("prettier-ignore") ||
             trimmed.startsWith("#region") ||
             trimmed.startsWith("#endregion") ||
             trimmed.toLowerCase().startsWith("todo") ||
             trimmed.toLowerCase().startsWith("fixme")
-          ) continue
+          )
+            continue
           context.report({
             node: comment,
             message: "Comments are not allowed.",

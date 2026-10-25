@@ -3,15 +3,18 @@ import {Rule} from "@oxlint/plugins"
 
 function _allowsNoBlock(node: ESTree.Statement): boolean {
   switch (node.type) {
-    case "ReturnStatement":
+    case "ReturnStatement": {
       return node.argument === null
+    }
 
     case "BreakStatement":
-    case "ContinueStatement":
+    case "ContinueStatement": {
       return true
+    }
 
-    default:
+    default: {
       return false
+    }
   }
 }
 
@@ -42,6 +45,27 @@ export default {
     }
 
     return {
+      SwitchCase(node) {
+        if (node.consequent.length === 0) return
+
+        const statement = node.consequent[0]
+
+        if (node.consequent.length === 1 && statement.type === "BlockStatement") {
+          if (statement.body.length === 0) {
+            context.report({
+              node: statement,
+              message: "Empty switch case body should not be wrapped in braces.",
+            })
+          }
+
+          return
+        }
+
+        context.report({
+          node,
+          message: "Switch case body should be wrapped in braces.",
+        })
+      },
       IfStatement(node) {
         _checkBranch(node.consequent)
 

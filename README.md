@@ -22,6 +22,7 @@ export default defineConfig({
     "aspizuism/block-style": "error",
     "aspizuism/func-style": "error",
     "aspizuism/no-comments": "error",
+    "aspizuism/no-conditional-empty-object-spread": "error",
     "aspizuism/private-prefix": "error",
   },
 })

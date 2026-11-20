@@ -24,6 +24,7 @@ export default defineConfig({
     "aspizuism/no-comments": "error",
     "aspizuism/no-conditional-empty-object-spread": "error",
     "aspizuism/private-prefix": "error",
+    "aspizuism/self-explanatory-conditions": "error",
   },
 })
 ```

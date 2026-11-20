@@ -22,6 +22,7 @@ export default defineConfig({
     "aspizuism/no-comments": "error",
     "aspizuism/no-conditional-empty-object-spread": "error",
     "aspizuism/private-prefix": "error",
+    "aspizuism/self-explanatory-conditions": "error",
     "no-nested-ternary": "error",
     "no-underscore-dangle": "off",
     "sort-imports": "off",

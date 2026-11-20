@@ -104,7 +104,8 @@ export default {
           return
         }
         if (node.id.name.startsWith("_")) return
-        if (/^[A-Z]/.test(node.id.name)) return
+        const startsWithUppercase = /^[A-Z]/.test(node.id.name)
+        if (startsWithUppercase) return
         context.report({
           node: node.id,
           message: "Private function should start with an underscore.",
